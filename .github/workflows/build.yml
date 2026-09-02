@@ -1,33 +1,35 @@
 name: Build AlohaRotationTrollFix
 on:
-  push:
-    branches: [ main ]
   workflow_dispatch:
 
 jobs:
   build:
     runs-on: ubuntu-latest
-    permissions:
-      contents: write
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install Theos dependencies
+      - name: Install dependencies
         run: |
           sudo apt update
-          sudo apt install -y git make clang lldb curl zip unzip
+          sudo apt install -y git curl wget unzip make
 
-      - name: Setup Theos
+      - name: Install Theos
         run: |
-          git clone --recursive https://github.com/theos/theos.git ~/theos
+          curl -fsSL https://theos.dev/install.sh | sh
           echo "THEOS=$HOME/theos" >> $GITHUB_ENV
 
-      - name: Build tweak
+      - name: Download iOS 15.0 SDK
         run: |
-          make package THEOS=$HOME/theos
+          mkdir -p $HOME/theos/sdks
+          cd $HOME/theos/sdks
+          wget -q https://github.com/theos/sdks/raw/master/iPhoneOS15.0.sdk.tar.xz
+          tar -xf iPhoneOS15.0.sdk.tar.xz
+
+      - name: Build tweak
+        run: make package
 
       - name: Upload deb
         uses: actions/upload-artifact@v4
         with:
-          name: tweak-deb
-          path: ./packages/*.deb
+          name: AlohaRotationTrollFix
+          path: packages/*.deb

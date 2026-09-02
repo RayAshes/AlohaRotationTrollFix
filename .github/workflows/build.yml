@@ -4,36 +4,27 @@ on:
 
 jobs:
   build:
-    runs-on: ubuntu-latest
+    runs-on: macos‑14
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install dependencies
+      - name: Install Theos
         run: |
-          sudo apt update
-          sudo apt install -y git curl make wget unzip
+          export THEOS=$HOME/theos
+          curl -fsSL https://theos.dev/install.sh | bash
+          echo "THEOS=$HOME/theos" >> $GITHUB_ENV
 
-      - name: Setup Theos
+      - name: Link system iPhoneOS SDK
         run: |
-          export THEOS=/home/runner/theos
-          curl -fsSL https://theos.dev/install.sh | sh
-          echo "THEOS=/home/runner/theos" >> $GITHUB_ENV
+          mkdir -p $THEOS/sdks
+          ln -s /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS15.0.sdk $THEOS/sdks/iPhoneOS15.2.sdk
 
-      - name: Download iPhoneOS15.2.sdk via ghproxy
+      - name: Build
         run: |
-          mkdir -p /home/runner/theos/sdks
-          cd /home/runner/theos/sdks
-          wget -O 152.zip https://mirror.ghproxy.com/https://github.com/xybp888/iOS-SDKs/archive/refs/heads/master.zip
-          unzip -q 152.zip "iOS-SDKs-master/iPhoneOS15.2.sdk/*"
-          mv iOS-SDKs-master/iPhoneOS15.2.sdk .
-          rm -rf 152.zip iOS-SDKs-master
-
-      - name: Compile tweak
-        run: |
-          export THEOS=/home/runner/theos
+          export THEOS=$HOME/theos
           make package
 
-      - name: Export .deb
+      - name: Upload deb
         uses: actions/upload-artifact@v4
         with:
           name: built-deb

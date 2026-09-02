@@ -1,4 +1,4 @@
-ARCHS = arm64e
+ARCHS = arm64
 TARGET = iphone:clang:15.0:15.0
 INSTALL_TARGET_PROCESSES = Aloha
 FINALPACKAGE = 1
@@ -12,4 +12,4 @@ AlohaRotationTrollFix_CFLAGS = -fobjc-arc -O2
 AlohaRotationTrollFix_FRAMEWORKS = CoreMotion
 AlohaRotationTrollFix_LIBRARIES = substrate
 
-include $(THEOS_MAKE_PATH)/tweak.mk
+include $(THEOS)/makefiles/tweak.mk

@@ -19,11 +19,11 @@ jobs:
           curl -fsSL https://theos.dev/install.sh | sh
           echo "THEOS=/home/runner/theos" >> $GITHUB_ENV
 
-      - name: Get iPhoneOS15.2.sdk
+      - name: Download iPhoneOS15.2.sdk
         run: |
           mkdir -p /home/runner/theos/sdks
           cd /home/runner/theos/sdks
-          svn export https://github.com/xybp888/iOS-SDKs/trunk/iPhoneOS15.2.sdk
+          svn export --force https://github.com/xybp888/iOS-SDKs/trunk/iPhoneOS15.2.sdk
 
       - name: Compile tweak
         run: |

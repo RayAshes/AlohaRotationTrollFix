@@ -11,10 +11,14 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install dependencies
+      - name: Install dependencies & add Procursus for ldid
         run: |
           sudo apt update
-          sudo apt install -y git curl make unzip wget ldid dpkg-dev
+          sudo apt install -y git curl make unzip wget dpkg-dev
+          curl -fsSL https://apt.procurs.us/procursus-keyring.gpg | sudo gpg --dearmor -o /usr/share/keyrings/procursus-keyring.gpg
+          echo "deb [signed-by=/usr/share/keyrings/procursus-keyring.gpg] https://apt.procurs.us/ubuntu any main" | sudo tee /etc/apt/sources.list.d/procursus.list
+          sudo apt update
+          sudo apt install -y ldid
 
       - name: Setup roothide‑Theos
         run: |

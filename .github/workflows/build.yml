@@ -1,1 +1,35 @@
+name: Build AlohaRotationTrollFix
+on:
+  push:
+  workflow_dispatch:
 
+jobs:
+  build:
+    runs-on: macos‑14
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Theos
+        run: |
+          git clone --depth=1 https://github.com/theos/theos.git ~/theos
+          echo "THEOS=$HOME/theos" >> $GITHUB_ENV
+
+      - name: Install sdks & ldid
+        run: |
+          brew install ldid
+          cd ~/theos
+          curl -LO https://github.com/theos/sdks/archive/refs/heads/master.tar.gz
+          tar -xf master.tar.gz
+          mv sdks‑master sdks
+
+      - name: Build tweak
+        env:
+          THEOS: $HOME/theos
+        run: |
+          make package FINALPACKAGE=1 ARCHS=arm64e TARGET=iphone:clang:15.0:15.0
+
+      - name: Upload deb
+        uses: actions/upload-artifact@v4
+        with:
+          name: AlohaRotationTrollFix‑deb
+          path: ./packages/*.deb

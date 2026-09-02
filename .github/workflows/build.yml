@@ -28,7 +28,9 @@ jobs:
           rm -rf iPhoneOS15.2.sdk.zip iOS-SDKs-master
 
       - name: Compile tweak
-        run: make package
+        run: |
+          export THEOS=$HOME/theos
+          make package
 
       - name: Export .deb
         uses: actions/upload-artifact@v4

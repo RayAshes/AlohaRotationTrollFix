@@ -1,0 +1,33 @@
+name: Build AlohaRotationTrollFix
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Theos dependencies
+        run: |
+          sudo apt update
+          sudo apt install -y git make clang lldb curl zip unzip
+
+      - name: Setup Theos
+        run: |
+          git clone --recursive https://github.com/theos/theos.git ~/theos
+          echo "THEOS=$HOME/theos" >> $GITHUB_ENV
+
+      - name: Build tweak
+        run: |
+          make package THEOS=$HOME/theos
+
+      - name: Upload deb
+        uses: actions/upload-artifact@v4
+        with:
+          name: tweak-deb
+          path: ./packages/*.deb

@@ -18,11 +18,11 @@ jobs:
           curl -fsSL https://theos.dev/install.sh | sh
           echo "THEOS=$HOME/theos" >> $GITHUB_ENV
 
-      - name: Download iOS15.0 SDK (jsdelivr mirror)
+      - name: Download iOS15.0 SDK via ghproxy
         run: |
           mkdir -p $HOME/theos/sdks
           cd $HOME/theos/sdks
-          wget -q https://cdn.jsdelivr.net/gh/theos/sdks@master/iPhoneOS15.0.sdk.tar.xz
+          wget --tries=3 --timeout=20 https://mirror.ghproxy.com/https://github.com/theos/sdks/raw/master/iPhoneOS15.0.sdk.tar.xz
           tar -xf iPhoneOS15.0.sdk.tar.xz
 
       - name: Build tweak

@@ -11,7 +11,7 @@ jobs:
       - name: Install dependencies
         run: |
           sudo apt update
-          sudo apt install -y git curl make unzip wget
+          sudo apt install -y git curl make wget subversion
 
       - name: Setup Theos
         run: |
@@ -19,18 +19,15 @@ jobs:
           curl -fsSL https://theos.dev/install.sh | sh
           echo "THEOS=/home/runner/theos" >> $GITHUB_ENV
 
-      - name: Download iPhoneOS15.2.sdk
+      - name: Get iPhoneOS15.2.sdk
         run: |
           mkdir -p /home/runner/theos/sdks
           cd /home/runner/theos/sdks
-          wget -O sdk.zip https://github.com/xybp888/iOS-SDKs/raw/master/iPhoneOS15.2.sdk.zip
-          unzip -q sdk.zip
-          rm -f sdk.zip
+          svn export https://github.com/xybp888/iOS-SDKs/trunk/iPhoneOS15.2.sdk
 
       - name: Compile tweak
         run: |
           export THEOS=/home/runner/theos
-          ls -la $THEOS/makefiles/
           make package
 
       - name: Export .deb

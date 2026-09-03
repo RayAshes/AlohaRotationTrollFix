@@ -5,20 +5,16 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
-    container: ghcr.io/theos/theos:latest
     steps:
       - uses: actions/checkout@v4
 
-      - name: Fix SDK name if needed
-        run: |
-          export THEOS=/theos
-          cd $THEOS/sdks
-          ln -sf iPhoneOS15.2.sdk iPhoneOS15.2.sdk
+      - name: Setup Theos
+        uses: theos/setup-theos@v1
+        with:
+          sdk: iphoneos15.2
 
-      - name: Build tweak
-        run: |
-          export THEOS=/theos
-          make package
+      - name: Build
+        run: make package
 
       - name: Upload deb
         uses: actions/upload-artifact@v4

@@ -9,7 +9,6 @@ on:
       - '**/*.h'
       - '**/*.m'
       - '**/*.xm'
-      - '**/*.xmi'
       - 'Makefile'
 
 permissions:
@@ -41,7 +40,7 @@ jobs:
           echo "Homebrew GNU make: $(which gmake)"
           gmake -v
 
-      - name: Clone vanilla Theos（原版theos，不用roothide补丁）
+      - name: Clone vanilla Theos
         run: |
           set -euo pipefail
           git clone --recursive https://github.com/theos/theos.git "$THEOS"
@@ -54,11 +53,11 @@ jobs:
           mkdir -p "$THEOS/sdks"
           cp -R /tmp/theos-sdks/iPhoneOS16.5.sdk "$THEOS/sdks/"
 
-      - name: Compile dylib only（只编译，不打包deb）
+      - name: Compile dylib only
         run: |
           set -euo pipefail
           export PATH="/opt/homebrew/opt/make/libexec/gnubin:$THEOS/bin:$PATH"
-          rm -rf packages build artifacts
+          rm -rf packages build artifacts .theos
           mkdir -p artifacts
           LOG=artifacts/build.log
           gmake clean SDKVERSION=$SDKVERSION 2>&1 | tee "$LOG"
@@ -73,7 +72,6 @@ jobs:
           DYLIB=$(find artifacts -name '*.dylib' | head -1)
           echo "File: $DYLIB"
           xcrun lipo -archs "$DYLIB"
-          xcrun vtool -arch arm64e -show-build "$DYLIB" | grep minos
 
       - name: Upload build artifacts
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02

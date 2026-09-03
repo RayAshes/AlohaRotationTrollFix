@@ -1,4 +1,4 @@
-name: Build for opa334 TrollFools
+name: Build for opa334 TrollFools (strip DRS)
 on:
   workflow_dispatch:
   push:
@@ -16,21 +16,22 @@ jobs:
       - name: Set Xcode
         run: sudo xcode-select -s /Applications/Xcode_15.4.app/Contents/Developer
 
-      - name: Install Theos
+      - name: Download jtool2 (to remove DRS load command)
         run: |
-          git clone --depth 1 https://github.com/theos/theos.git ~/theos
+          curl -fsSL https://github.com/itaybre/jtool2/releases/download/2.2.1/jtool2-macos -o ./jtool2
+          chmod +x ./jtool2
 
-      - name: Download SDK
+      - name: Get SDK
         run: |
           git clone --depth 1 --filter=blob:none --sparse https://github.com/theos/sdks.git ~/sdks
           git -C ~/sdks sparse-checkout set iPhoneOS16.5.sdk
-          cp -r ~/sdks/iPhoneOS16.5.sdk ~/theos/sdks/
+          echo "SDKROOT=$HOME/sdks/iPhoneOS16.5.sdk" >> $GITHUB_ENV
 
       - name: Compile FAT dylib
         run: |
           xcrun clang \
             -arch arm64 \
-            -isysroot ~/theos/sdks/iPhoneOS16.5.sdk \
+            -isysroot "$SDKROOT" \
             -mios-version-min=15.0 \
             -fobjc-arc -O2 \
             -dynamiclib \
@@ -40,7 +41,7 @@ jobs:
 
           xcrun clang \
             -arch arm64e \
-            -isysroot ~/theos/sdks/iPhoneOS16.5.sdk \
+            -isysroot "$SDKROOT" \
             -mios-version-min=15.0 \
             -fobjc-arc -O2 \
             -dynamiclib \
@@ -50,9 +51,9 @@ jobs:
 
           xcrun lipo -create arm64.dylib arm64e.dylib -o tweak.dylib
 
-      - name: Fake‑sign (absolute path to theos ldid)
+      - name: Remove LC_DYLIB_CODE_SIGN_DRS (关键修复)
         run: |
-          ~/theos/bin/ldid -Sentitlements:<(echo '<?xml version="1.0"?><!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd"><plist version="1.0"><dict></dict></plist>') tweak.dylib
+          ./jtool2 -d -delete LC_DYLIB_CODE_SIGN_DRS tweak.dylib
 
       - name: Upload artifact
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02

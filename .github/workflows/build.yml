@@ -16,24 +16,21 @@ jobs:
       - name: Set Xcode
         run: sudo xcode-select -s /Applications/Xcode_15.4.app/Contents/Developer
 
-      - name: Install Theos（内置可用老版ldid，不产生DRS）
+      - name: Install Theos
         run: |
           git clone --depth 1 https://github.com/theos/theos.git ~/theos
-          echo "THEOS=$HOME/theos" >> $GITHUB_ENV
-          echo "PATH=$HOME/theos/bin:$PATH" >> $GITHUB_PATH
 
       - name: Download SDK
         run: |
           git clone --depth 1 --filter=blob:none --sparse https://github.com/theos/sdks.git ~/sdks
           git -C ~/sdks sparse-checkout set iPhoneOS16.5.sdk
-          cp -r ~/sdks/iPhoneOS16.5.sdk $THEOS/sdks/
-          echo "SDKROOT=$THEOS/sdks/iPhoneOS16.5.sdk" >> $GITHUB_ENV
+          cp -r ~/sdks/iPhoneOS16.5.sdk ~/theos/sdks/
 
       - name: Compile FAT dylib
         run: |
           xcrun clang \
             -arch arm64 \
-            -isysroot "$SDKROOT" \
+            -isysroot ~/theos/sdks/iPhoneOS16.5.sdk \
             -mios-version-min=15.0 \
             -fobjc-arc -O2 \
             -dynamiclib \
@@ -43,7 +40,7 @@ jobs:
 
           xcrun clang \
             -arch arm64e \
-            -isysroot "$SDKROOT" \
+            -isysroot ~/theos/sdks/iPhoneOS16.5.sdk \
             -mios-version-min=15.0 \
             -fobjc-arc -O2 \
             -dynamiclib \
@@ -53,9 +50,9 @@ jobs:
 
           xcrun lipo -create arm64.dylib arm64e.dylib -o tweak.dylib
 
-      - name: Fake‑sign using Theos bundled ldid
+      - name: Fake‑sign (absolute path to theos ldid)
         run: |
-          ldid -Sentitlements:<(echo '<?xml version="1.0"?><!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd"><plist version="1.0"><dict></dict></plist>') tweak.dylib
+          ~/theos/bin/ldid -Sentitlements:<(echo '<?xml version="1.0"?><!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd"><plist version="1.0"><dict></dict></plist>') tweak.dylib
 
       - name: Upload artifact
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02

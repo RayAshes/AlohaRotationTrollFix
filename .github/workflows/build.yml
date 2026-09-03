@@ -8,12 +8,11 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Build with Theos
-        uses: theos/theos-action@main
+      - name: Build tweak with Theos
+        uses: khronosschoty/theos-action@master
         with:
           sdk: iPhoneOS15.2.sdk
-          # 自动拉取theos+可用的Procursus工具链
-      
+
       - name: Upload deb
         uses: actions/upload-artifact@v4
         with:

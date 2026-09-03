@@ -1,6 +1,6 @@
 name: Build Tweak
 on:
-  workflow_dispatch:
+  workflow_dispatch
 
 jobs:
   build:
@@ -8,10 +8,35 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Build tweak with Theos
-        uses: khronosschoty/theos-action@master
-        with:
-          sdk: iPhoneOS15.2.sdk
+      - name: Install dependencies
+        run: |
+          sudo apt update
+          sudo apt install -y git build-essential bison flex libssl-dev libtool automake autoconf pkg-config curl wget
+
+      - name: Build cctools‑port (iOS cross‑toolchain)
+        run: |
+          git clone --depth=1 https://github.com/tpoechtrager/cctools-port.git
+          cd cctools-port/usage_examples/ios_toolchain
+          ./build.sh arm64 15.2
+          export TOOLCHAIN=$PWD/toolchain
+          echo "TOOLCHAIN=$TOOLCHAIN" >> $GITHUB_ENV
+          echo "$TOOLCHAIN/bin" >> $GITHUB_PATH
+
+      - name: Get Theos
+        run: |
+          git clone --recursive https://github.com/theos/theos.git $HOME/theos
+          echo "THEOS=$HOME/theos" >> $GITHUB_ENV
+
+      - name: Download iPhoneOS15.2.sdk
+        run: |
+          mkdir -p $HOME/theos/sdks
+          cd $HOME/theos/sdks
+          wget -q https://github.com/mmj1997/iOSSDK/releases/download/sdk/iPhoneOS15.2.sdk.tar.xz
+          tar -xf iPhoneOS15.2.sdk.tar.xz
+
+      - name: Compile tweak
+        run: |
+          make package
 
       - name: Upload deb
         uses: actions/upload-artifact@v4

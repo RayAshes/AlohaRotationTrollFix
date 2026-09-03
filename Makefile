@@ -1,5 +1,5 @@
 ARCHS = arm64
-TARGET = iphone:clang:15.0:15.0
+TARGET = iphone:clang:15.2:15.2
 INSTALL_TARGET_PROCESSES = Aloha
 FINALPACKAGE = 1
 

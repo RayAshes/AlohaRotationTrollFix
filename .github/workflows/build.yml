@@ -16,15 +16,15 @@ jobs:
       - name: Select Xcode
         run: sudo xcode-select -s /Applications/Xcode_15.4.app/Contents/Developer
 
-      - name: Compile drstool from source
+      - name: Compile drstool from source (git:// no auth)
         run: |
-          git clone --depth 1 https://github.com/xybp888/drstool.git
+          git clone --depth 1 git://github.com/xybp888/drstool.git
           swiftc drstool/drstool.swift -o drstool
           chmod +x ./drstool
 
       - name: Fetch iOS SDK
         run: |
-          git clone --depth 1 --filter=blob:none --sparse https://github.com/theos/sdks.git ~/sdks
+          git clone --depth 1 --filter=blob:none --sparse git://github.com/theos/sdks.git ~/sdks
           git -C ~/sdks sparse-checkout set iPhoneOS16.5.sdk
           echo "SDKROOT=$HOME/sdks/iPhoneOS16.5.sdk" >> $GITHUB_ENV
 

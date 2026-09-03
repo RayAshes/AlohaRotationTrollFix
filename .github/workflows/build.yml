@@ -1,44 +1,112 @@
-name: Build Tweak
+name: Build RootHide Tweak
+
 on:
   workflow_dispatch:
+  push:
+    branches: [ main, master ]
+    paths:
+      - '.github/workflows/build.yml'
+      - '**/*.h'
+      - '**/*.m'
+      - '**/*.xm'
+      - '**/*.xmi'
+      - '**/*.plist'
+      - 'Makefile'
+      - 'control'
+      - 'layout/**'
+
+permissions:
+  contents: read
 
 jobs:
   build:
-    runs-on: ubuntu-latest
+    name: Build RootHide Tweak (macOS‑14)
+    runs-on: macos-14
+    env:
+      THEOS: ${{ github.workspace }}/theos
+      THEOS_PACKAGE_SCHEME: roothide
+      FINALPACKAGE: 1
+      SDKVERSION: 16.5
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout source
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
 
-      - name: Install deps
+      - name: Select Xcode
         run: |
-          sudo apt update
-          sudo apt install -y git make curl wget xz-utils zstd binutils
+          set -euo pipefail
+          sudo xcode-select -s /Applications/Xcode_15.4.app/Contents/Developer
+          xcodebuild -version
+          xcrun clang --version
 
-      - name: Download cross‑clang (xia0599 mirror)
+      - name: Install dependencies
         run: |
-          wget https://github.xia0599.workers.dev/https://github.com/xia0599/cross-clang/releases/download/18.1.7/cross-clang-aarch64-apple-darwin.tar.zst
-          mkdir -p ~/toolchain
-          tar -I zstd -xf cross-clang-aarch64-apple-darwin.tar.zst -C ~/toolchain
-          echo "TOOLCHAIN=$HOME/toolchain" >> $GITHUB_ENV
-          echo "$HOME/toolchain/bin" >> $GITHUB_PATH
+          set -euo pipefail
+          brew update
+          brew install dpkg ldid make
 
-      - name: Clone Theos
+      - name: Clone RootHide‑patched Theos
         run: |
-          git clone --recursive https://github.com/theos/theos.git ~/theos
-          echo "THEOS=$HOME/theos" >> $GITHUB_ENV
+          set -euo pipefail
+          git clone --recursive https://github.com/roothide/theos.git "$THEOS"
 
-      - name: Get iPhoneOS15.2 SDK
+      - name: Fetch fixed iPhoneOS16.5 SDK
         run: |
-          mkdir -p $THEOS/sdks
-          cd $THEOS/sdks
-          wget -O iPhoneOS15.2.sdk.tar.xz https://github.xia0599.workers.dev/https://github.com/renn0xtek/ios-sdk-archive/releases/download/sdks/iPhoneOS15.2.sdk.tar.xz
-          tar -xf iPhoneOS15.2.sdk.tar.xz
-          rm -f iPhoneOS15.2.sdk.tar.xz
+          set -euo pipefail
+          git clone --depth 1 --filter=blob:none --sparse https://github.com/theos/sdks.git /tmp/theos-sdks
+          git -C /tmp/theos-sdks sparse-checkout set iPhoneOS16.5.sdk
+          mkdir -p "$THEOS/sdks"
+          cp -R /tmp/theos-sdks/iPhoneOS16.5.sdk "$THEOS/sdks/"
 
-      - name: Build tweak
-        run: make package
+      - name: Compile tweak
+        run: |
+          set -euo pipefail
+          export PATH="/opt/homebrew/opt/make/libexec/gnubin:$THEOS/bin:$PATH"
+          rm -rf packages artifacts
+          mkdir -p artifacts
+          LOG=artifacts/build.log
+          make clean SDKVERSION=$SDKVERSION 2>&1 | tee "$LOG"
+          make package THEOS_PACKAGE_SCHEME=roothide FINALPACKAGE=1 SDKVERSION=$SDKVERSION 2>&1 | tee -a "$LOG"
+          if grep -qi 'incompatible arm64e abi compiler' "$LOG";then
+            echo "::error::arm64e ABI不匹配"
+            exit 1
+          fi
+          DEB=$(find packages -name '*.deb' | head -1)
+          [ -n "$DEB" ]
+          cp "$DEB" artifacts/
 
-      - name: Upload deb
-        uses: actions/upload-artifact@v4
+      - name: Basic binary validation（通用校验，不写死名字）
+        run: |
+          set -euo pipefail
+          export PATH="/opt/homebrew/opt/make/libexec/gnubin:$THEOS/bin:$PATH"
+          DEB=$(find artifacts -name '*.deb' | head -1)
+          [ -n "$DEB" ]
+          echo "Package name: $(dpkg-deb -f "$DEB" Package)"
+          echo "Architecture: $(dpkg-deb -f "$DEB" Architecture)"
+          # roothide必须是iphoneos‑arm64e
+          [ "$(dpkg-deb -f "$DEB" Architecture)" = "iphoneos-arm64e" ]
+
+          TMP=/tmp/tweak‑verify
+          rm -rf "$TMP"
+          mkdir -p "$TMP"
+          dpkg-deb -x "$DEB" "$TMP"
+
+          # 遍历所有Mach‑O二进制，检查arm64e、minos≥15.0
+          find "$TMP" -type f \( -name "*.dylib" -o -name "*.bundle" \) | while read -r bin;do
+            if xcrun lipo -archs "$bin" | grep -q arm64e;then
+              echo "Checking $bin"
+              xcrun vtool -arch arm64e -show-build "$bin" | grep -E 'minos|sdk'
+              xcrun vtool -arch arm64e -show-build "$bin" | grep -q 'minos[[:space:]]*15\.'
+            fi
+          done
+
+          {
+            echo "deb=$(basename "$DEB")"
+            echo "sha256=$(shasum -a256 "$DEB" | awk '{print $1}')"
+          } > artifacts/info.txt
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
-          name: built-deb
-          path: packages/*.deb
+          name: tweak-roothide-build
+          path: artifacts/
+          retention-days: 30

@@ -5,40 +5,24 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+    # 使用theos官方docker镜像，内置clang交叉工具链、lipo、ldid
+    container: theos/theos:latest
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install base packages
+      - name: 下载并解压 iPhoneOS15.2.sdk
         run: |
-          sudo apt-get update
-          sudo apt-get install -y git curl wget zstd build-essential xz-utils
-
-      - name: Download Opa334 prebuilt cross‑clang
-        run: |
-          wget https://github.com/opa334/toolchain-linux-aarch64/releases/download/clang18/cross-clang-aarch64-apple-darwin.tar.zst
-          mkdir -p ~/procursus-toolchain
-          tar -I zstd -xf cross-clang-aarch64-apple-darwin.tar.zst -C ~/procursus-toolchain
-          echo "TOOLCHAIN=$HOME/procursus-toolchain" >> $GITHUB_ENV
-          echo "$HOME/procursus-toolchain/bin" >> $GITHUB_PATH
-
-      - name: Get Theos
-        run: |
-          git clone --recursive https://github.com/theos/theos.git ~/theos
-          echo "THEOS=$HOME/theos" >> $GITHUB_ENV
-
-      - name: Download & extract iPhoneOS15.2.sdk
-        run: |
-          mkdir -p ~/theos/sdks
-          cd ~/theos/sdks
+          mkdir -p $THEOS/sdks
+          cd $THEOS/sdks
           wget -O iPhoneOS15.2.sdk.tar.xz https://github.com/renn0xtek/ios-sdk-archive/releases/download/sdks/iPhoneOS15.2.sdk.tar.xz
           tar -xf iPhoneOS15.2.sdk.tar.xz
-          rm -f iPhoneOS15.2.sdk.tar.xz
-          ls -la ~/theos/sdks
+          rm iPhoneOS15.2.sdk.tar.xz
+          ls -ld $THEOS/sdks/iPhoneOS15.2.sdk
 
-      - name: Build tweak
+      - name: 编译Tweak
         run: make package
 
-      - name: Upload deb
+      - name: 上传deb
         uses: actions/upload-artifact@v4
         with:
           name: built-deb

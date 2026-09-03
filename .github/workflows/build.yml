@@ -1,4 +1,4 @@
-name: Build TrollFools‑compatible dylib
+name: Build for opa334 TrollFools
 on:
   workflow_dispatch:
   push:
@@ -15,15 +15,15 @@ jobs:
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
 
-      - name: Select Xcode
+      - name: Set Xcode
         run: sudo xcode-select -s /Applications/Xcode_15.4.app/Contents/Developer
 
-      - name: Download compatible old ldid‑2.1.5‑procdump
+      - name: Grab ldid‑2.1.5‑procdump (NO DRS)
         run: |
-          curl -fsSL -o ldid https://github.com/ProcursusTeam/ldid/releases/download/v2.1.5-procdump/ldid-macos
+          curl -fsSL https://github.com/ProcursusTeam/ldid/releases/download/v2.1.5-procdump/ldid-macos -o ./ldid
           chmod +x ./ldid
 
-      - name: Grab SDK
+      - name: Download SDK
         run: |
           git clone --depth 1 https://github.com/theos/theos.git "$THEOS"
           git clone --depth 1 --filter=blob:none --sparse https://github.com/theos/sdks.git /tmp/sdks
@@ -32,7 +32,7 @@ jobs:
           cp -R /tmp/sdks/iPhoneOS16.5.sdk "$THEOS/sdks/"
           echo "SDKROOT=$THEOS/sdks/iPhoneOS16.5.sdk" >> $GITHUB_ENV
 
-      - name: Compile arm64 + arm64e
+      - name: Compile FAT dylib
         run: |
           xcrun clang \
             -arch arm64 \
@@ -56,19 +56,11 @@ jobs:
 
           xcrun lipo -create arm64.dylib arm64e.dylib -o tweak.dylib
 
-      - name: Sign with ldid‑2.1.5‑procdump（关键）
+      - name: Fake‑sign (critical, no LC_DYLIB_CODE_SIGN_DRS)
         run: |
-          ./ldid -Sentitlements:<(cat <<'EOF'
-<?xml version="1.0"?>
-<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-<plist version="1.0">
-<dict>
-</dict>
-</plist>
-EOF
-          ) tweak.dylib
+          ./ldid -Sentitlements:<(echo '<?xml version="1.0"?><!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd"><plist version="1.0"><dict></dict></plist>') tweak.dylib
 
-      - name: Artifact
+      - name: Upload
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
           name: tweak

@@ -51,7 +51,7 @@ func stripDRS(_ slice:Data) -> Data? {
             d.removeSubrange(pos..<pos+Int(lc.cmdsize))
             mh.ncmds -= 1
             mh.sizeofcmds -= lc.cmdsize
-            var mhData = Data(bytes:&mh, count:MemoryLayout<mach_header_64>.size)
+            let mhData = Data(bytes:&mh, count:MemoryLayout<mach_header_64>.size)
             d.replaceSubrange(0..<mhData.count, with: mhData)
             continue
         }
@@ -85,26 +85,26 @@ if magic == FAT_MAGIC_64 {
     // 重打包FAT64
     var out = Data()
     var newArchs = [fat_arch_64]()
-    var offset = MemoryLayout<fat_header>.size + newSlices.count * MemoryLayout<fat_arch_64>.size
+    var offset:UInt64 = UInt64(MemoryLayout<fat_header>.size + newSlices.count * MemoryLayout<fat_arch_64>.size)
     for s in newSlices {
         let align:UInt64 = 0x4000
-        let pad = (align - (UInt64(offset) % align)) % align
+        let pad = (align - (offset % align)) % align
         offset += pad
-        var fa = fat_arch_64(cputype:0, cpusubtype:0, offset:UInt64(offset), size:UInt64(s.count), align:14, reserved:0)
+        var fa = fat_arch_64(cputype:0, cpusubtype:0, offset:offset, size:UInt64(s.count), align:14, reserved:0)
         newArchs.append(fa)
         offset += UInt64(s.count)
     }
     fh.nfat_arch = UInt32(newSlices.count)
     out.append(Data(bytes:&fh,count:MemoryLayout<fat_header>.size))
     for var a in newArchs { out.append(Data(bytes:&a,count:MemoryLayout<fat_arch_64>.size)) }
-    var ptr = out.count
+    var ptr:UInt64 = UInt64(out.count)
     for (idx,var s) in newSlices.enumerated() {
         let align:UInt64 = 0x4000
-        let pad = (align - (UInt64(ptr) % align)) % align
+        let pad = (align - (ptr % align)) % align
         out.append(Data(repeating:0,count:Int(pad)))
         newArchs[idx].offset = UInt64(out.count)
         out.append(s)
-        ptr = out.count
+        ptr = UInt64(out.count)
     }
     // 回填修正后的fat_arch_64 offset
     out.replaceSubrange(MemoryLayout<fat_header>.size..<MemoryLayout<fat_header>.size+newArchs.count*MemoryLayout<fat_arch_64>.size,

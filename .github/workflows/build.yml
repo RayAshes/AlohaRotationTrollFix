@@ -13,9 +13,9 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y git curl wget zstd build-essential xz-utils
 
-      - name: Download prebuilt Procursus cross‑clang
+      - name: Download Opa334 prebuilt cross‑clang
         run: |
-          wget https://github.com/ProcursusTeam/build-tools/releases/download/v20250418/cross-clang-aarch64-apple-darwin.tar.zst
+          wget https://github.com/opa334/toolchain-linux-aarch64/releases/download/clang18/cross-clang-aarch64-apple-darwin.tar.zst
           mkdir -p ~/procursus-toolchain
           tar -I zstd -xf cross-clang-aarch64-apple-darwin.tar.zst -C ~/procursus-toolchain
           echo "TOOLCHAIN=$HOME/procursus-toolchain" >> $GITHUB_ENV
@@ -30,7 +30,6 @@ jobs:
         run: |
           mkdir -p ~/theos/sdks
           cd ~/theos/sdks
-          # 这个源是打包好的 tar.xz
           wget -O iPhoneOS15.2.sdk.tar.xz https://github.com/renn0xtek/ios-sdk-archive/releases/download/sdks/iPhoneOS15.2.sdk.tar.xz
           tar -xf iPhoneOS15.2.sdk.tar.xz
           rm -f iPhoneOS15.2.sdk.tar.xz

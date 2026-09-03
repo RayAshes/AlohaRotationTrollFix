@@ -27,8 +27,6 @@ jobs:
       THEOS_PACKAGE_SCHEME: roothide
       FINALPACKAGE: 1
       SDKVERSION: 16.5
-      # 强制gnu make路径最高优先级
-      PATH: /opt/homebrew/opt/make/libexec/gnubin:${{ github.workspace }}/theos/bin:$PATH
     steps:
       - name: Checkout source
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
@@ -45,9 +43,8 @@ jobs:
           set -euo pipefail
           brew update
           brew install dpkg ldid make
-          # 输出确认make版本
-          echo "make path: $(which make)"
-          make -v
+          echo "Homebrew GNU make: $(which gmake)"
+          gmake -v
 
       - name: Clone RootHide‑patched Theos
         run: |
@@ -65,11 +62,13 @@ jobs:
       - name: Compile tweak
         run: |
           set -euo pipefail
+          # 只在这一步局部优先gnu make，不污染全局PATH
+          export PATH="/opt/homebrew/opt/make/libexec/gnubin:$THEOS/bin:$PATH"
           rm -rf packages artifacts
           mkdir -p artifacts
           LOG=artifacts/build.log
-          make clean SDKVERSION=$SDKVERSION 2>&1 | tee "$LOG"
-          make package THEOS_PACKAGE_SCHEME=roothide FINALPACKAGE=1 SDKVERSION=$SDKVERSION 2>&1 | tee -a "$LOG"
+          gmake clean SDKVERSION=$SDKVERSION 2>&1 | tee "$LOG"
+          gmake package THEOS_PACKAGE_SCHEME=roothide FINALPACKAGE=1 SDKVERSION=$SDKVERSION 2>&1 | tee -a "$LOG"
           if grep -qi 'incompatible arm64e abi compiler' "$LOG";then
             echo "::error::arm64e ABI不匹配"
             exit 1
@@ -81,6 +80,7 @@ jobs:
       - name: Basic binary validation
         run: |
           set -euo pipefail
+          export PATH="/opt/homebrew/opt/make/libexec/gnubin:$THEOS/bin:$PATH"
           DEB=$(find artifacts -name '*.deb' | head -1)
           [ -n "$DEB" ]
           echo "Package name: $(dpkg-deb -f "$DEB" Package)"

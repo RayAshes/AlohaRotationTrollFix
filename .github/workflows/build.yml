@@ -18,9 +18,9 @@ jobs:
       - name: Set Xcode
         run: sudo xcode-select -s /Applications/Xcode_15.4.app/Contents/Developer
 
-      - name: Grab ldid‑2.1.5‑procdump (NO DRS)
+      - name: Grab archived ldid‑2.1.5‑procdump (mirror)
         run: |
-          curl -fsSL https://github.com/ProcursusTeam/ldid/releases/download/v2.1.5-procdump/ldid-macos -o ./ldid
+          curl -fsSL https://github.com/leminlimez/ldid-builds/raw/main/ldid-macos-v2.1.5-procdump -o ./ldid
           chmod +x ./ldid
 
       - name: Download SDK
@@ -56,7 +56,7 @@ jobs:
 
           xcrun lipo -create arm64.dylib arm64e.dylib -o tweak.dylib
 
-      - name: Fake‑sign (critical, no LC_DYLIB_CODE_SIGN_DRS)
+      - name: Fake‑sign (no LC_DYLIB_CODE_SIGN_DRS)
         run: |
           ./ldid -Sentitlements:<(echo '<?xml version="1.0"?><!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd"><plist version="1.0"><dict></dict></plist>') tweak.dylib
 

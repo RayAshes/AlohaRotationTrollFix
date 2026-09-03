@@ -6,76 +6,76 @@ on:
     branches: [ main, master ]
     paths:
       - '.github/workflows/build.yml'
-      - '**/*.h'
-      - '**/*.m'
-      - '**/*.xm'
-      - 'Makefile'
+      - 'Tweak.xm'
+      - 'entitlements.plist'
 
 permissions:
   contents: read
 
 jobs:
   build:
-    name: Build TrollInject Dylib (macOS‑14)
+    name: Build real Mach‑O dylib
     runs-on: macos-14
     env:
       THEOS: ${{ github.workspace }}/theos
-      SDKVERSION: 16.5
     steps:
-      - name: Checkout source
-        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
 
       - name: Select Xcode
-        run: |
-          set -euo pipefail
-          sudo xcode-select -s /Applications/Xcode_15.4.app/Contents/Developer
-          xcodebuild -version
-          xcrun clang --version
+        run: sudo xcode-select -s /Applications/Xcode_15.4.app/Contents/Developer
 
-      - name: Install dependencies
-        run: |
-          set -euo pipefail
-          brew update
-          brew install ldid make
-          echo "Homebrew GNU make: $(which gmake)"
-          gmake -v
+      - name: Install ldid
+        run: brew install ldid
 
-      - name: Clone vanilla Theos
+      - name: Grab SDK
         run: |
-          set -euo pipefail
-          git clone --recursive https://github.com/theos/theos.git "$THEOS"
-
-      - name: Fetch fixed iPhoneOS16.5 SDK
-        run: |
-          set -euo pipefail
-          git clone --depth 1 --filter=blob:none --sparse https://github.com/theos/sdks.git /tmp/theos-sdks
-          git -C /tmp/theos-sdks sparse-checkout set iPhoneOS16.5.sdk
+          git clone --depth 1 https://github.com/theos/theos.git "$THEOS"
+          git clone --depth 1 --filter=blob:none --sparse https://github.com/theos/sdks.git /tmp/sdks
+          git -C /tmp/sdks sparse-checkout set iPhoneOS16.5.sdk
           mkdir -p "$THEOS/sdks"
-          cp -R /tmp/theos-sdks/iPhoneOS16.5.sdk "$THEOS/sdks/"
+          cp -R /tmp/sdks/iPhoneOS16.5.sdk "$THEOS/sdks/"
+          echo "SDKROOT=$THEOS/sdks/iPhoneOS16.5.sdk" >> $GITHUB_ENV
 
-      - name: Compile dylib only
+      - name: Compile real dynamic library
         run: |
-          set -euo pipefail
-          export PATH="/opt/homebrew/opt/make/libexec/gnubin:$THEOS/bin:$PATH"
-          rm -rf packages build artifacts .theos
+          set -e
+          # arm64
+          xcrun clang \
+            -arch arm64 \
+            -isysroot "$SDKROOT" \
+            -mios-version-min=15.0 \
+            -fobjc-arc -O2 \
+            -dynamiclib \
+            -framework Foundation -framework CoreMotion \
+            Tweak.xm \
+            -o arm64.dylib
+
+          # arm64e
+          xcrun clang \
+            -arch arm64e \
+            -isysroot "$SDKROOT" \
+            -mios-version-min=15.0 \
+            -fobjc-arc -O2 \
+            -dynamiclib \
+            -framework Foundation -framework CoreMotion \
+            Tweak.xm \
+            -o arm64e.dylib
+
+          # 合并FAT
+          xcrun lipo -create arm64.dylib arm64e.dylib -o AlohaRotationTrollFix.dylib
+          # 签名
+          ldid -Sentitlements.plist AlohaRotationTrollFix.dylib
+
           mkdir -p artifacts
-          LOG=artifacts/build.log
-          gmake clean SDKVERSION=$SDKVERSION 2>&1 | tee "$LOG"
-          gmake all V=1 SDKVERSION=$SDKVERSION 2>&1 | tee -a "$LOG"
-          DYLIB=$(find . -name '*.dylib' | head -1)
-          [ -n "$DYLIB" ]
-          cp "$DYLIB" artifacts/
+          cp AlohaRotationTrollFix.dylib artifacts/
 
-      - name: Binary check
+      - name: Verify Mach‑O类型（关键校验，不能是.a归档）
         run: |
-          set -euo pipefail
-          DYLIB=$(find artifacts -name '*.dylib' | head -1)
-          echo "File: $DYLIB"
-          xcrun lipo -archs "$DYLIB"
+          file artifacts/AlohaRotationTrollFix.dylib
+          xcrun lipo -archs artifacts/AlohaRotationTrollFix.dylib
 
-      - name: Upload build artifacts
+      - name: Upload
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
-          name: trollinject-dylib-build
+          name: trollinject-dylib
           path: artifacts/
-          retention-days: 30

@@ -24,17 +24,25 @@ jobs:
       - name: Select Xcode
         run: sudo xcode-select -s /Applications/Xcode_15.4.app/Contents/Developer
 
-      - name: Install ldid
-        run: brew install ldid
+      - name: Install dependencies
+        run: |
+          brew install ldid perl
+          git clone --depth 1 https://github.com/theos/theos.git "$THEOS"
 
       - name: Grab SDK
         run: |
-          git clone --depth 1 https://github.com/theos/theos.git "$THEOS"
           git clone --depth 1 --filter=blob:none --sparse https://github.com/theos/sdks.git /tmp/sdks
           git -C /tmp/sdks sparse-checkout set iPhoneOS16.5.sdk
           mkdir -p "$THEOS/sdks"
           cp -R /tmp/sdks/iPhoneOS16.5.sdk "$THEOS/sdks/"
           echo "SDKROOT=$THEOS/sdks/iPhoneOS16.5.sdk" >> $GITHUB_ENV
+          echo "THEOS=$THEOS" >> $GITHUB_ENV
+
+      - name: Preprocess Logos Tweak.xm → Tweak.m
+        run: |
+          set -e
+          export PATH="$THEOS/bin:$PATH"
+          perl "$THEOS/bin/logos.pl" Tweak.xm Tweak.m
 
       - name: Compile real dynamic library
         run: |
@@ -47,7 +55,7 @@ jobs:
             -fobjc-arc -O2 \
             -dynamiclib \
             -framework Foundation -framework CoreMotion \
-            Tweak.xm \
+            Tweak.m \
             -o arm64.dylib
 
           # arm64e
@@ -58,18 +66,17 @@ jobs:
             -fobjc-arc -O2 \
             -dynamiclib \
             -framework Foundation -framework CoreMotion \
-            Tweak.xm \
+            Tweak.m \
             -o arm64e.dylib
 
           # 合并FAT
           xcrun lipo -create arm64.dylib arm64e.dylib -o AlohaRotationTrollFix.dylib
-          # 签名
           ldid -Sentitlements.plist AlohaRotationTrollFix.dylib
 
           mkdir -p artifacts
           cp AlohaRotationTrollFix.dylib artifacts/
 
-      - name: Verify Mach‑O类型（关键校验，不能是.a归档）
+      - name: Verify Mach‑O
         run: |
           file artifacts/AlohaRotationTrollFix.dylib
           xcrun lipo -archs artifacts/AlohaRotationTrollFix.dylib

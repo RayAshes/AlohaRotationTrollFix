@@ -8,10 +8,16 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install dependencies
+      - name: Install base deps
         run: |
           sudo apt update
-          sudo apt install -y git build-essential
+          sudo apt install -y git curl wget bzip2 build-essential
+
+      - name: Download Procursus toolchain (clang+lld for iOS)
+        run: |
+          wget https://github.com/ProcursusTeam/Procursus/releases/download/clang-19.1.7-1/clang-19.1.7-1_amd64.deb
+          sudo dpkg -i clang-19.1.7-1_amd64.deb || true
+          sudo apt -f install -y
 
       - name: Clone Theos
         run: |
@@ -32,6 +38,7 @@ jobs:
       - name: Build
         run: |
           export THEOS=$HOME/theos
+          export PATH=/opt/procursus/bin:$PATH
           make package
 
       - name: Upload deb

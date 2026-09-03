@@ -14,9 +14,7 @@ void hookedStartAccelerometerUpdates(id self, SEL _cmd, NSOperationQueue *queue,
             return;
         }
         double z = data.acceleration.z;
-        if (z < -0.70) {
-            return;
-        }
+        if (z < -0.70) return;
         handler(data, err);
     };
     ((void (*)(id,SEL,NSOperationQueue *,CMAccelerometerHandler))orig_startAcc)(self,_cmd,queue,wrapped);
@@ -31,9 +29,7 @@ void hookedStartDeviceMotionUpdates(id self, SEL _cmd, NSOperationQueue *queue, 
             return;
         }
         double z = motion.gravity.z;
-        if (z < -0.70) {
-            return;
-        }
+        if (z < -0.70) return;
         handler(motion, err);
     };
     ((void (*)(id,SEL,NSOperationQueue *,CMDeviceMotionHandler))orig_startDev)(self,_cmd,queue,wrapped);

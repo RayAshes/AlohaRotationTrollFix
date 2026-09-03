@@ -1,20 +1,14 @@
-name: Build TrollInject Dylib
-
+name: Build TrollFools‑compatible dylib
 on:
   workflow_dispatch:
   push:
-    branches: [ main, master ]
-    paths:
-      - '.github/workflows/build.yml'
-      - 'Tweak.m'
-      - 'entitlements.plist'
+    branches: [ main ]
 
 permissions:
   contents: read
 
 jobs:
   build:
-    name: Build real Mach‑O dylib
     runs-on: macos-14
     env:
       THEOS: ${{ github.workspace }}/theos
@@ -24,10 +18,12 @@ jobs:
       - name: Select Xcode
         run: sudo xcode-select -s /Applications/Xcode_15.4.app/Contents/Developer
 
-      - name: Install ldid
-        run: brew install ldid
+      - name: Download compatible old ldid‑2.1.5‑procdump
+        run: |
+          curl -fsSL -o ldid https://github.com/ProcursusTeam/ldid/releases/download/v2.1.5-procdump/ldid-macos
+          chmod +x ./ldid
 
-      - name: Download iOS SDK
+      - name: Grab SDK
         run: |
           git clone --depth 1 https://github.com/theos/theos.git "$THEOS"
           git clone --depth 1 --filter=blob:none --sparse https://github.com/theos/sdks.git /tmp/sdks
@@ -36,9 +32,8 @@ jobs:
           cp -R /tmp/sdks/iPhoneOS16.5.sdk "$THEOS/sdks/"
           echo "SDKROOT=$THEOS/sdks/iPhoneOS16.5.sdk" >> $GITHUB_ENV
 
-      - name: Compile FAT dynamic library
+      - name: Compile arm64 + arm64e
         run: |
-          set -e
           xcrun clang \
             -arch arm64 \
             -isysroot "$SDKROOT" \
@@ -59,19 +54,22 @@ jobs:
             Tweak.m \
             -o arm64e.dylib
 
-          xcrun lipo -create arm64.dylib arm64e.dylib -o AlohaRotationTrollFix.dylib
-          ldid -Sentitlements.plist AlohaRotationTrollFix.dylib
+          xcrun lipo -create arm64.dylib arm64e.dylib -o tweak.dylib
 
-          mkdir -p artifacts
-          cp AlohaRotationTrollFix.dylib artifacts/
-
-      - name: Verify
+      - name: Sign with ldid‑2.1.5‑procdump（关键）
         run: |
-          file artifacts/AlohaRotationTrollFix.dylib
-          xcrun lipo -archs artifacts/AlohaRotationTrollFix.dylib
+          ./ldid -Sentitlements:<(cat <<'EOF'
+<?xml version="1.0"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+</dict>
+</plist>
+EOF
+          ) tweak.dylib
 
-      - name: Upload artifact
+      - name: Artifact
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
-          name: trollinject-dylib
-          path: artifacts/
+          name: tweak
+          path: tweak.dylib

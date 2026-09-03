@@ -8,13 +8,26 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Setup Theos
-        uses: theos/actions-setup-theos@v1
-        with:
-          sdk: iphoneos15.2
+      - name: Install dependencies
+        run: |
+          sudo apt update
+          sudo apt install -y git curl build-essential lzma-dev libbz2-dev
 
-      - name: Build tweak
-        run: make package
+      - name: Clone Theos
+        run: |
+          git clone --depth=1 https://github.com/theos/theos.git $HOME/theos
+          cd $HOME/theos
+          git submodule update --init --recursive
+
+      - name: Install SDK
+        run: |
+          export THEOS=$HOME/theos
+          $THEOS/bin/install-theos sdk iphoneos15.0
+
+      - name: Build
+        run: |
+          export THEOS=$HOME/theos
+          make package
 
       - name: Upload deb
         uses: actions/upload-artifact@v4

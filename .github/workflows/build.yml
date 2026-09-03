@@ -4,24 +4,20 @@ on:
 
 jobs:
   build:
-    runs-on: macos‑14
+    runs-on: ubuntu-latest
+    container: ghcr.io/theos/theos:latest
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install Theos
+      - name: Fix SDK name if needed
         run: |
-          export THEOS=$HOME/theos
-          curl -fsSL https://theos.dev/install.sh | bash
-          echo "THEOS=$HOME/theos" >> $GITHUB_ENV
+          export THEOS=/theos
+          cd $THEOS/sdks
+          ln -sf iPhoneOS15.2.sdk iPhoneOS15.2.sdk
 
-      - name: Link system iPhoneOS SDK
+      - name: Build tweak
         run: |
-          mkdir -p $THEOS/sdks
-          ln -s /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS15.0.sdk $THEOS/sdks/iPhoneOS15.2.sdk
-
-      - name: Build
-        run: |
-          export THEOS=$HOME/theos
+          export THEOS=/theos
           make package
 
       - name: Upload deb

@@ -18,6 +18,7 @@ jobs:
           git clone --depth=1 https://github.com/theos/theos.git $HOME/theos
           cd $HOME/theos
           git submodule update --init --recursive
+          chmod +x bin/*
 
       - name: Install SDK
         run: |

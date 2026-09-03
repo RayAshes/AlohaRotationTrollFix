@@ -1,4 +1,6 @@
 #import <Foundation/Foundation.h>
+#import <objc/runtime.h>
+#import <substrate.h>
 #import <CoreMotion/CoreMotion.h>
 
 static void (*orig_start)(CMMotionManager *, SEL, NSOperationQueue *, CMAccelerometerHandler);
@@ -7,7 +9,8 @@ static void hookedStartAccelerometerUpdates(
     CMMotionManager *self, SEL _cmd,
     NSOperationQueue *queue,
     CMAccelerometerHandler originalHandler
-) {
+)
+{
     CMAccelerometerHandler wrapped = ^(CMAccelerometerData *data, NSError *err) {
         if(err || !data) {
             if(originalHandler) originalHandler(data, err);
@@ -25,7 +28,9 @@ static void hookedStartAccelerometerUpdates(
 __attribute__((constructor))
 void init_hook(void) {
     Class cmClass = objc_getClass("CMMotionManager");
-    MSHookMessageEx(
+    if (!cmClass) return;
+
+    MSHookMessage(
         cmClass,
         @selector(startAccelerometerUpdatesToQueue:withHandler:),
         (IMP)hookedStartAccelerometerUpdates,

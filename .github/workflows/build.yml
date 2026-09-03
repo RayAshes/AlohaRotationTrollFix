@@ -1,4 +1,4 @@
-name: Build‑TrollFools‑Safe (remove DRS)
+name: Build‑TrollFools‑Safe‑LocalDRSTool
 on:
   workflow_dispatch:
   push:
@@ -16,15 +16,14 @@ jobs:
       - name: Select Xcode
         run: sudo xcode-select -s /Applications/Xcode_15.4.app/Contents/Developer
 
-      - name: Compile drstool from source (git:// no auth)
+      - name: Build local drstool (no network clone)
         run: |
-          git clone --depth 1 git://github.com/xybp888/drstool.git
-          swiftc drstool/drstool.swift -o drstool
+          swiftc drstool.swift -o drstool
           chmod +x ./drstool
 
       - name: Fetch iOS SDK
         run: |
-          git clone --depth 1 --filter=blob:none --sparse git://github.com/theos/sdks.git ~/sdks
+          git clone --depth 1 --filter=blob:none --sparse https://github.com/theos/sdks.git ~/sdks
           git -C ~/sdks sparse-checkout set iPhoneOS16.5.sdk
           echo "SDKROOT=$HOME/sdks/iPhoneOS16.5.sdk" >> $GITHUB_ENV
 
@@ -52,10 +51,10 @@ jobs:
 
           xcrun lipo -create arm64.dylib arm64e.dylib -o tweak.dylib
 
-      - name: Delete LC_DYLIB_CODE_SIGN_DRS
+      - name: Strip LC_DYLIB_CODE_SIGN_DRS
         run: ./drstool tweak.dylib
 
-      - name: Upload
+      - name: Upload artifact
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
           name: tweak

@@ -5,24 +5,23 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
-    # 使用theos官方docker镜像，内置clang交叉工具链、lipo、ldid
-    container: theos/theos:latest
+    container: ghcr.io/theos/theos:latest
     steps:
       - uses: actions/checkout@v4
 
-      - name: 下载并解压 iPhoneOS15.2.sdk
+      - name: Get iPhoneOS15.2.sdk
         run: |
           mkdir -p $THEOS/sdks
           cd $THEOS/sdks
           wget -O iPhoneOS15.2.sdk.tar.xz https://github.com/renn0xtek/ios-sdk-archive/releases/download/sdks/iPhoneOS15.2.sdk.tar.xz
           tar -xf iPhoneOS15.2.sdk.tar.xz
-          rm iPhoneOS15.2.sdk.tar.xz
+          rm -f iPhoneOS15.2.sdk.tar.xz
           ls -ld $THEOS/sdks/iPhoneOS15.2.sdk
 
-      - name: 编译Tweak
+      - name: Build
         run: make package
 
-      - name: 上传deb
+      - name: Upload deb
         uses: actions/upload-artifact@v4
         with:
           name: built-deb

@@ -1,39 +1,63 @@
 #import <Foundation/Foundation.h>
 #import <objc/runtime.h>
-#import <substrate.h>
 #import <CoreMotion/CoreMotion.h>
 
-static void (*orig_start)(CMMotionManager *, SEL, NSOperationQueue *, CMAccelerometerHandler);
+static IMP orig_startAcc = NULL;
+static IMP orig_startDev = NULL;
 
-static void hookedStartAccelerometerUpdates(
-    CMMotionManager *self, SEL _cmd,
-    NSOperationQueue *queue,
-    CMAccelerometerHandler originalHandler
-)
+void hookedStartAccelerometerUpdates(id self, SEL _cmd, NSOperationQueue *queue, CMAccelerometerHandler handler)
 {
     CMAccelerometerHandler wrapped = ^(CMAccelerometerData *data, NSError *err) {
-        if(err || !data) {
-            if(originalHandler) originalHandler(data, err);
+        if (!handler) return;
+        if (err || !data) {
+            handler(data, err);
             return;
         }
         double z = data.acceleration.z;
-        if(z < -0.70) {
+        if (z < -0.70) {
             return;
         }
-        if(originalHandler) originalHandler(data, err);
+        handler(data, err);
     };
-    orig_start(self, _cmd, queue, wrapped);
+    ((void (*)(id,SEL,NSOperationQueue *,CMAccelerometerHandler))orig_startAcc)(self,_cmd,queue,wrapped);
+}
+
+void hookedStartDeviceMotionUpdates(id self, SEL _cmd, NSOperationQueue *queue, CMDeviceMotionHandler handler)
+{
+    CMDeviceMotionHandler wrapped = ^(CMDeviceMotion *motion, NSError *err) {
+        if (!handler) return;
+        if (err || !motion) {
+            handler(motion, err);
+            return;
+        }
+        double z = motion.gravity.z;
+        if (z < -0.70) {
+            return;
+        }
+        handler(motion, err);
+    };
+    ((void (*)(id,SEL,NSOperationQueue *,CMDeviceMotionHandler))orig_startDev)(self,_cmd,queue,wrapped);
 }
 
 __attribute__((constructor))
-void init_hook(void) {
-    Class cmClass = objc_getClass("CMMotionManager");
-    if (!cmClass) return;
+void do_hook(void)
+{
+    Class motionClass = objc_getClass("CMMotionManager");
+    if (!motionClass) return;
 
-    MSHookMessage(
-        cmClass,
-        @selector(startAccelerometerUpdatesToQueue:withHandler:),
-        (IMP)hookedStartAccelerometerUpdates,
-        (IMP *)&orig_start
-    );
+    SEL sAcc = @selector(startAccelerometerUpdatesToQueue:withHandler:);
+    Method mAcc = class_getInstanceMethod(motionClass, sAcc);
+    if(mAcc)
+    {
+        orig_startAcc = method_getImplementation(mAcc);
+        method_setImplementation(mAcc, (IMP)hookedStartAccelerometerUpdates);
+    }
+
+    SEL sDev = @selector(startDeviceMotionUpdatesToQueue:withHandler:);
+    Method mDev = class_getInstanceMethod(motionClass, sDev);
+    if(mDev)
+    {
+        orig_startDev = method_getImplementation(mDev);
+        method_setImplementation(mDev, (IMP)hookedStartDeviceMotionUpdates);
+    }
 }

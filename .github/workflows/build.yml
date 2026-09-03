@@ -27,6 +27,8 @@ jobs:
       THEOS_PACKAGE_SCHEME: roothide
       FINALPACKAGE: 1
       SDKVERSION: 16.5
+      # 强制gnu make路径最高优先级
+      PATH: /opt/homebrew/opt/make/libexec/gnubin:${{ github.workspace }}/theos/bin:$PATH
     steps:
       - name: Checkout source
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
@@ -43,6 +45,9 @@ jobs:
           set -euo pipefail
           brew update
           brew install dpkg ldid make
+          # 输出确认make版本
+          echo "make path: $(which make)"
+          make -v
 
       - name: Clone RootHide‑patched Theos
         run: |
@@ -60,7 +65,6 @@ jobs:
       - name: Compile tweak
         run: |
           set -euo pipefail
-          export PATH="/opt/homebrew/opt/make/libexec/gnubin:$THEOS/bin:$PATH"
           rm -rf packages artifacts
           mkdir -p artifacts
           LOG=artifacts/build.log
@@ -74,15 +78,13 @@ jobs:
           [ -n "$DEB" ]
           cp "$DEB" artifacts/
 
-      - name: Basic binary validation（通用校验，不写死名字）
+      - name: Basic binary validation
         run: |
           set -euo pipefail
-          export PATH="/opt/homebrew/opt/make/libexec/gnubin:$THEOS/bin:$PATH"
           DEB=$(find artifacts -name '*.deb' | head -1)
           [ -n "$DEB" ]
           echo "Package name: $(dpkg-deb -f "$DEB" Package)"
           echo "Architecture: $(dpkg-deb -f "$DEB" Architecture)"
-          # roothide必须是iphoneos‑arm64e
           [ "$(dpkg-deb -f "$DEB" Architecture)" = "iphoneos-arm64e" ]
 
           TMP=/tmp/tweak‑verify
@@ -90,7 +92,6 @@ jobs:
           mkdir -p "$TMP"
           dpkg-deb -x "$DEB" "$TMP"
 
-          # 遍历所有Mach‑O二进制，检查arm64e、minos≥15.0
           find "$TMP" -type f \( -name "*.dylib" -o -name "*.bundle" \) | while read -r bin;do
             if xcrun lipo -archs "$bin" | grep -q arm64e;then
               echo "Checking $bin"

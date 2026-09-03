@@ -1,8 +1,8 @@
-Package: com.trollfix.aloharotation
+Package: com.yourname.alarotationtrollfix
 Name: AlohaRotationTrollFix
-Version: 0.0.1
-Architecture: iphoneos‑arm64e
-Description: TrollStore static inject fix, block upside‑down accelerometer for Aloha
-Author: none
+Version: 1.0
+Architecture: iphoneos-arm64e
+Maintainer: Ray
+Description: Fix Aloha browser forced portrait lock
 Section: Tweaks
 Depends: mobilesubstrate

@@ -1,4 +1,4 @@
-name: Build‑TrollFools‑Safe‑LocalDRSTool
+name: Build‑TrollFools‑Compatible‑Tweak
 on:
   workflow_dispatch:
   push:
@@ -9,53 +9,39 @@ permissions:
 
 jobs:
   build:
-    runs-on: macos-14
+    runs-on: macos‑latest
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
 
-      - name: Select Xcode
-        run: sudo xcode-select -s /Applications/Xcode_15.4.app/Contents/Developer
-
-      - name: Build local drstool (no network clone)
-        run: |
-          swiftc drstool.swift -o drstool
-          chmod +x ./drstool
-
       - name: Fetch iOS SDK
         run: |
-          git clone --depth 1 --filter=blob:none --sparse https://github.com/theos/sdks.git ~/sdks
-          git -C ~/sdks sparse-checkout set iPhoneOS16.5.sdk
-          echo "SDKROOT=$HOME/sdks/iPhoneOS16.5.sdk" >> $GITHUB_ENV
+          git clone --depth 1 --filter=blob:none --sparse https://github.com/theos/sdks
+          cd sdks
+          git sparse‑checkout set iPhoneOS15.2.sdk
 
-      - name: Build universal dylib
+      - name: Compile tweak (arm64 + arm64e thin)
         run: |
-          xcrun clang \
-            -arch arm64 \
-            -isysroot "$SDKROOT" \
-            -mios-version-min=15.0 \
-            -fobjc-arc -O2 \
-            -dynamiclib \
-            -framework Foundation -framework CoreMotion \
-            Tweak.m \
-            -o arm64.dylib
+          export SDKROOT=$PWD/sdks/iPhoneOS15.2.sdk
+          clang -arch arm64 -arch arm64e -dynamiclib Tweak.m -o tweak.fat \
+            -isysroot $SDKROOT -fvisibility=hidden -ObjC
 
-          xcrun clang \
-            -arch arm64e \
-            -isysroot "$SDKROOT" \
-            -mios-version-min=15.0 \
-            -fobjc-arc -O2 \
-            -dynamiclib \
-            -framework Foundation -framework CoreMotion \
-            Tweak.m \
-            -o arm64e.dylib
+      - name: Split fat binary to thin slices
+        run: |
+          lipo tweak.fat -extract arm64 -o arm64.dylib
+          lipo tweak.fat -extract arm64e -o arm64e.dylib
 
-          xcrun lipo -create arm64.dylib arm64e.dylib -o tweak.dylib
+      - name: Remove LC_DYLIB_CODE_SIGN_DRS from each slice
+        run: |
+          brew install opttool
+          opttool --delete‑load‑command 0x2A arm64.dylib
+          opttool --delete‑load‑command 0x2A arm64e.dylib
 
-      - name: Strip LC_DYLIB_CODE_SIGN_DRS
-        run: ./drstool tweak.dylib
+      - name: Repack universal fat binary
+        run: |
+          lipo -create arm64.dylib arm64e.dylib -output tweak.dylib
 
-      - name: Upload artifact
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+      - name: Upload
+        uses: actions/upload‑artifact@v4
         with:
           name: tweak
           path: tweak.dylib

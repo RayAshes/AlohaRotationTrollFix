@@ -1,4 +1,4 @@
-name: Build for opa334 TrollFools (strip DRS)
+name: Build for opa334 TrollFools (drstool build from source)
 on:
   workflow_dispatch:
   push:
@@ -16,10 +16,13 @@ jobs:
       - name: Set Xcode
         run: sudo xcode-select -s /Applications/Xcode_15.4.app/Contents/Developer
 
-      - name: Download jtool2 (to remove DRS load command)
+      - name: Build drstool from source
         run: |
-          curl -fsSL https://github.com/itaybre/jtool2/releases/download/2.2.1/jtool2-macos -o ./jtool2
-          chmod +x ./jtool2
+          git clone https://github.com/xybp888/drstool.git
+          cd drstool
+          swiftc drstool.swift -o ../drstool
+          cd ..
+          chmod +x ./drstool
 
       - name: Get SDK
         run: |
@@ -51,9 +54,8 @@ jobs:
 
           xcrun lipo -create arm64.dylib arm64e.dylib -o tweak.dylib
 
-      - name: Remove LC_DYLIB_CODE_SIGN_DRS (关键修复)
-        run: |
-          ./jtool2 -d -delete LC_DYLIB_CODE_SIGN_DRS tweak.dylib
+      - name: Strip LC_DYLIB_CODE_SIGN_DRS
+        run: ./drstool tweak.dylib
 
       - name: Upload artifact
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02

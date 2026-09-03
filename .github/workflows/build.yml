@@ -8,39 +8,12 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install base deps
-        run: |
-          sudo apt update
-          sudo apt install -y git curl wget bzip2 build-essential
-
-      - name: Download Procursus toolchain (clang+lld for iOS)
-        run: |
-          wget https://github.com/ProcursusTeam/Procursus/releases/download/clang-19.1.7-1/clang-19.1.7-1_amd64.deb
-          sudo dpkg -i clang-19.1.7-1_amd64.deb || true
-          sudo apt -f install -y
-
-      - name: Clone Theos
-        run: |
-          git clone --depth=1 https://github.com/theos/theos.git $HOME/theos
-          cd $HOME/theos
-          git submodule update --init --recursive
-          chmod +x bin/*
-
-      - name: Get iPhoneOS15.2.sdk
-        run: |
-          export THEOS=$HOME/theos
-          mkdir -p $THEOS/sdks
-          cd $THEOS/sdks
-          git clone --depth=1 https://github.com/xybp888/iOS-SDKs.git
-          mv iOS-SDKs/iPhoneOS15.2.sdk .
-          rm -rf iOS-SDKs
-
-      - name: Build
-        run: |
-          export THEOS=$HOME/theos
-          export PATH=/opt/procursus/bin:$PATH
-          make package
-
+      - name: Build with Theos
+        uses: theos/theos-action@main
+        with:
+          sdk: iPhoneOS15.2.sdk
+          # 自动拉取theos+可用的Procursus工具链
+      
       - name: Upload deb
         uses: actions/upload-artifact@v4
         with:
